@@ -8,7 +8,8 @@
 #include "TextureBuilder.h"
 #include "Model_3DS.h"
 #include "GLTexture.h"
-
+#include <vector>
+#include <chrono>
 #include <glut.h>
 
 
@@ -16,6 +17,10 @@
 #define GLUT_KEY_ESCAPE 27
 
 #define M_PI 3.14159265358979323846
+float playerx = 0.0f;
+float playery = 0.0f;
+float playerz = 0.0f;
+float playerrotation = 0.0f;
 
 class Vector3f {
 public:
@@ -45,6 +50,9 @@ public:
 
     Vector3f unit() const {
         float mag = sqrt(x * x + y * y + z * z);
+        if (mag == 0) {
+            return 0;
+        }
         return *this / mag;
     }
 
@@ -54,7 +62,14 @@ public:
             x * v.y - y * v.x);
     }
 };
+float deltaTime = 1.0;
 
+void calculateDeltaTime() {
+    static auto startTime = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<float> duration = now - startTime;
+    startTime = now;
+    deltaTime = duration.count(); // Time in seconds
 
 
 class Camera {
@@ -104,6 +119,112 @@ void setupLights() {
     glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse);
     glLightfv(GL_LIGHT0, GL_POSITION, position);
 }
+
+class Bullet {
+public:
+    float dmg;
+    Vector3f range;
+    Vector3f position;
+    float speed=4.0f;
+    Vector3f direction;
+
+    Bullet(Vector3f start ,float dmg, Vector3f dir) {
+        this->dmg = dmg;
+        this->range = 2.0;
+        
+        position = start;
+        position.y = 1;
+   
+        Vector3f front(dir.x, 0.0f, dir.z);
+        front = front.unit();
+        this->direction = front;
+
+        std::cout << "dir" << direction.x <<","<<direction.y<<","<<direction.z << std::endl;
+
+     }
+    void move(float deltaTime) {
+        position = position + direction * (speed * deltaTime);
+    } 
+    void draw(double distX, double distY, double distZ) {
+       // glScalef(2.0f, 2.0f, 2.0f);
+        glPushMatrix();
+        std::cout << "draw a bullet at "<<distX<<","<<distY<<","<<distZ << std::endl;
+      glColor3f(0.9294f, 0.3569f, 0.1098f);
+    
+        glTranslated(distX, distY, distZ);
+
+        //  glScalef(0.3, 0.3, 0.3);
+        glutSolidSphere(0.02, 15, 15);
+        glPopMatrix();
+    }
+
+};
+
+class weapon {
+public:
+    bool type;
+    float dmg;
+    Vector3f range;
+    Vector3f position;
+    
+    weapon(bool type){
+       this-> type = type;
+       if (type) {
+           dmg = 10;
+       }
+       else
+           dmg = 20;
+    }
+
+    weapon(bool type, Vector3f position) {
+        this->type = type;
+        this->dmg = dmg;
+        if (type) {
+            dmg = 10;
+        }
+        else
+            dmg = 20;
+    }
+
+};
+std::vector<Bullet*>bullets;
+
+void shoot(weapon & t) {
+    std::cout << "shoot" << std::endl;
+    Vector3f start = t.position;
+
+    Bullet* b = new Bullet(start,t.dmg,cameraFront);
+
+    std::cout << "Bullet position: " << start.x << ", " << start.y << ", " << start.z << std::endl;
+    bullets.push_back(b);
+
+   
+}
+void updateBullets(){
+    int index = 0;
+    for (Bullet* it : bullets) {
+        it->move(deltaTime);
+        it->draw(it->position.x, it->position.y, it->position.z);
+        bool erased = false;
+
+        /*if (hasCollidedWithEnemy(*it, enemy)) {
+            bullets.erase(bullets.begin() + index); // Remove the bullet upon collision
+            erased = true;
+            if (enemy.getHp() > 20)
+                enemy.setHp(enemy.getHp() - 20); // Damage the zombie
+            else enemy.setHp(0);
+
+        }*/
+        if (!erased)
+        {
+            index++;
+        }
+
+
+
+    }
+}
+
 
 void setupCamera() {
     glMatrixMode(GL_PROJECTION);
@@ -185,17 +306,38 @@ void drawModel() {
     glPopMatrix();
 }
 
+weapon cw(true);
+
 void Display() {
+    calculateDeltaTime();
     setupCamera();
     setupLights();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    Vector3f pos(playerx, playery, playerz);
+    cw.position = pos;
     drawGround();
     drawSkybox();
     drawModel();
+    for (Bullet* it : bullets) {
+
+        it->move(deltaTime);
+      //  std::cout << "Bullet position: " << it->position.x << ", " << it->position.y << ", " << it->position.z << std::endl;
+
+      it->draw(it->position.x, it->position.y, it->position.z);
+
+        glEnd();
+
+
+    }
 
     glutSwapBuffers();
+}
+void Anim() {
+    calculateDeltaTime();
+    
+    glutPostRedisplay();
 }
 
 void Keyboard(unsigned char key, int x, int y) {
@@ -277,6 +419,14 @@ void Init() {
 
     glutSetCursor(GLUT_CURSOR_NONE);
 }
+void time(int val) {
+    int index = 0;
+   
+        updateBullets();
+        bool erased = false;
+    
+    glutTimerFunc(5, time, 0);
+}
 
 void main(int argc, char** argv) {
     glutInit(&argc, argv);
@@ -296,6 +446,7 @@ void main(int argc, char** argv) {
     LoadAssets();
     Init();
     updateCamera();
+    glutTimerFunc(0, time, 0);
 
     glutMainLoop();
 }
