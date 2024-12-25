@@ -71,6 +71,9 @@ void calculateDeltaTime() {
     startTime = now;
     deltaTime = duration.count(); // Time in seconds
 
+}
+
+
 
 class Camera {
 public:
@@ -363,6 +366,9 @@ void Keyboard(unsigned char key, int x, int y) {
         playerx += right.x * moveSpeed;
         playerz += right.z * moveSpeed;
         break;
+    case ' ':
+        shoot(cw);
+        break;
     case GLUT_KEY_ESCAPE:
         exit(0);
         break;
@@ -428,7 +434,10 @@ void time(int val) {
     glutTimerFunc(5, time, 0);
 }
 
+
+
 void main(int argc, char** argv) {
+
     glutInit(&argc, argv);
 
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
